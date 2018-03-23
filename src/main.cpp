@@ -7,9 +7,32 @@
 
 #define IR_SENSOR_PIN 4
 #define RELAY_OUTPUT 8
+#define LEVEL 150
+#define TEMPS_ON 5000
+#define TEMPS_OFF 2500
+#define TEMPS_AFFICHAGE 100
 
-// the setup routine runs once when you press reset:
-void setup() {
+unsigned long temps_au_changement_etat_precedent = 0;
+unsigned long temps_a_l_affichage_precedent = 0;
+
+typedef enum {
+  kChercheBonneValeur,
+  kSortieOn,
+  kSortieOff
+} MachineEtatTrucImportantEnum;
+
+//Déclaration d'une variable (nom : DansQuelEtatJeSuis) qui est de type MachineEtatEnum
+MachineEtatTrucImportantEnum DansQuelEtatJeSuis;
+
+typedef enum {
+  kAfficheRien,
+  kAfficheValeur
+} MachineEtatAfficheurEnum;
+
+MachineEtatAfficheurEnum DansQuelEtatEstLAffichage;
+
+void setup()
+{
   // initialize digital pin RELAY_OUTPUT as an output.
   pinMode(RELAY_OUTPUT, OUTPUT);
   // initialize digital pin LED_BUILTIN as an output.
@@ -19,27 +42,75 @@ void setup() {
   digitalWrite(RELAY_OUTPUT, LOW);
   digitalWrite(LED_BUILTIN, LOW);
 
-  // initialize serial communication at 9600 bits per second:
+  //Defini le 1er etat de la machine d'état
+  DansQuelEtatJeSuis = kChercheBonneValeur;
+  DansQuelEtatEstLAffichage = kAfficheRien;
+
   Serial.begin(9600);
 }
 
-// the loop routine runs over and over again forever:
-void loop() {
+void loop()
+{
   //Read analog input value
   int val = analogRead(IR_SENSOR_PIN);
 
-  //If object is closed, enble output relay
-  if (val > 400) {
+  unsigned long now = millis();
+
+  //Transition "Cherche bonne valeur" à "ON"
+  if ((val > LEVEL) && (DansQuelEtatJeSuis == kChercheBonneValeur)) {
+    //Sauvegarde le temps actuel
+    temps_au_changement_etat_precedent = now;
+
+    //Affichage d'information
+    Serial.print("Event level!");
+    Serial.print(" (val : ");
+    Serial.print(val);
+    Serial.println("), Start timer ON");
+
+    //Enclenchement de la sortie
     digitalWrite(RELAY_OUTPUT, HIGH);
     digitalWrite(LED_BUILTIN, HIGH);
-    Serial.print("ON  / ");
-  } else {
+
+    DansQuelEtatJeSuis = kSortieOn;
+  }
+
+  //Transition "ON" à "OFF"
+  if ((now > (temps_au_changement_etat_precedent + TEMPS_ON)) && (DansQuelEtatJeSuis == kSortieOn)) {
+    //Sauvegarde le temps actuel
+    temps_au_changement_etat_precedent = now;
+
+    //Affichage d'information
+    Serial.println("End timer ON, start timer OFF");
+
+    //Déclenchement de la sortie
     digitalWrite(RELAY_OUTPUT, LOW);
     digitalWrite(LED_BUILTIN, LOW);
-    Serial.print("OFF / ");
-  }
-  Serial.println(val);
 
-  // wait for a second
-  delay(1000);
+    DansQuelEtatJeSuis = kSortieOff;
+  }
+
+  //Transition "OFF" à "Cherche bonne valeur"
+  if ((now > (temps_au_changement_etat_precedent + TEMPS_OFF)) && (DansQuelEtatJeSuis == kSortieOff)) {
+    //Affichage d'information
+    Serial.println("End timer OFF");
+    //Serial.print(" / val : ");
+    //Serial.println(val);
+
+    DansQuelEtatJeSuis = kChercheBonneValeur;
+  }
+
+  //Transition "AffichageRien" à "AffichageValeur"
+  if ((now > (temps_a_l_affichage_precedent + TEMPS_AFFICHAGE)) && (DansQuelEtatEstLAffichage == kAfficheRien)) {
+    temps_a_l_affichage_precedent = now;
+
+    DansQuelEtatEstLAffichage = kAfficheValeur;
+  }
+
+  //Transition "AffichageValeur" à "AffichageRien"
+  if (DansQuelEtatEstLAffichage == kAfficheValeur) {
+    Serial.print("Ma valeur est a ");
+    Serial.println(val);
+
+    DansQuelEtatEstLAffichage = kAfficheRien;
+  }
 }
