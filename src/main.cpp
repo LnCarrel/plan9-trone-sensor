@@ -18,7 +18,8 @@ unsigned long temps_a_l_affichage_precedent = 0;
 typedef enum {
   kChercheBonneValeur,
   kSortieOn,
-  kSortieOff
+  kSortieOff,
+  kAttenteSansPersonne
 } MachineEtatTrucImportantEnum;
 
 //Déclaration d'une variable (nom : DansQuelEtatJeSuis) qui est de type MachineEtatEnum
@@ -89,10 +90,20 @@ void loop()
     DansQuelEtatJeSuis = kSortieOff;
   }
 
-  //Transition "OFF" à "Cherche bonne valeur"
+  //Transition "OFF" à "Attente que la personne part"
   if ((now > (temps_au_changement_etat_precedent + TEMPS_OFF)) && (DansQuelEtatJeSuis == kSortieOff)) {
     //Affichage d'information
     Serial.println("End timer OFF");
+    //Serial.print(" / val : ");
+    //Serial.println(val);
+
+    DansQuelEtatJeSuis = kAttenteSansPersonne;
+  }
+
+  //Transition "Attente que la personne part" à "Cherche bonne valeur"
+  if ((val <= LEVEL) && (DansQuelEtatJeSuis == kAttenteSansPersonne)) {
+    //Affichage d'information
+    Serial.println("Personne partie");
     //Serial.print(" / val : ");
     //Serial.println(val);
 
